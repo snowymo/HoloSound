@@ -29,6 +29,8 @@ public class audioFilter : MonoBehaviour {
 		_bufferUseSize = new int[_bufferNum];
 
 		_started = true;
+
+		taudio = GetComponent<TrackableAudio> ();
 	}
 
 	double[][] _buffer;
@@ -38,33 +40,14 @@ public class audioFilter : MonoBehaviour {
 	int _bufferingIndex = 0;
 	int _playingIndex = 0;
 	int _bufferNum = 3;
-	float _bufferTime = 0.02f;           //Change Buffer Time
+	float _bufferTime = 0.01f;           //Change Buffer Time
 	float _bufferLimitTime = 0.5f;  //All Buffer Time
 	bool _started = false;
 
-	void copyBuffer(double[] src_buffer, double[] dst_buffer, int src_startIndex, int dst_startIndex, int size)
-	{
-		//if this case happened. mean buffer over run
-		if (src_buffer.Length < src_startIndex + size || dst_buffer.Length < dst_startIndex + size)
-		{
-			Debug.Log("error");
-		}
 
-		for (int i = 0; i < size; i++)
-		{
-			dst_buffer[dst_startIndex + i] = src_buffer[src_startIndex + i];
-		}
-	}
-
-	void memBuffer(double[] dst_buffer, int dst_startIndex, double value, int size)
-	{
-		for (int i = 0; i < size; i++)
-		{
-			dst_buffer[dst_startIndex + i] = value;
-		}
-	}
 
 	public audioCreateClip aplay;
+	public TrackableAudio taudio;
 	void OnAudioFilterRead(float[] data, int channels)
 	{
 		print ("channel:" + channels);
@@ -74,37 +57,46 @@ public class audioFilter : MonoBehaviour {
 		if (!_started)
 			return;
 
+		int monoralDataLength = data.Length / channels;
+		aplay.monoral_data = new double[monoralDataLength];
+
+
 		//monoral
+		if (channels == 1)		{
+			for (int i = 0; i < data.Length; i++){
+				aplay.monoral_data[i] = data[i];
+			}
 
-			int monoralDataLength = data.Length / channels;
+			OnProcess(aplay.monoral_data);
+
+			for (int i = 0; i < data.Length; i++){
+				aplay.monoral_data[i] = (float)data[i];
+			}
+		}else{
 			//convert stereo sound to monoral
-			aplay.monoral_data = new double[monoralDataLength];
-
-			for (int i = 0; i < monoralDataLength; i++)
-			{
+			for (int i = 0; i < monoralDataLength; i++){
 				aplay.monoral_data[i] = data[i * channels];
 			}
 
-		OnProcess(aplay.monoral_data);
-
+			OnProcess(aplay.monoral_data);
 
 			//fill monoral data to channels
-			for (int i = 0; i < data.Length; i+=channels)
-			{
+			for (int i = 0; i < data.Length; i+=channels){
 				int j = (int)(i / channels);
-				for (int k = 0; k < channels; k++)
-				{
-				// final
-				data[i+k] = (float)aplay.monoral_data[j]*0.001f;
+				for (int k = 0; k < channels; k++){
+					// final
+					data[i+k] = 0;//(float)aplay.monoral_data[j]*0.1f;
 				}
 			}
+		}
+		if (taudio.Host) {
+			taudio.audio_data = new double[monoralDataLength];
+			copyBuffer (aplay.monoral_data, taudio.audio_data, 0, 0, aplay.monoral_data.Length);
+		}
 	}
-
-
 
 	void OnProcess(double[] monoral_data)
 	{
-
 		//process charge buffer
 		if (_bufferingSeek < _bufferTime * outputSampleRate)
 		{
@@ -114,7 +106,6 @@ public class audioFilter : MonoBehaviour {
 		}
 		else //change to next buffer
 		{
-
 			_bufferingIndex = (_bufferingIndex + 1) % _bufferNum;
 			_bufferingSeek = 0;
 			copyBuffer(monoral_data, _buffer[_bufferingIndex], 0, _bufferingSeek, monoral_data.Length);
@@ -123,20 +114,17 @@ public class audioFilter : MonoBehaviour {
 		}
 
 		//wait for change buffer
-		if ((_playingIndex + 2) % _bufferNum == _bufferingIndex)
-		{
-
+		if ((_playingIndex + 2) % _bufferNum == _bufferingIndex){
 			//process play sound
-			if (_playingSeek + monoral_data.Length < _bufferUseSize[_playingIndex])
-			{
+			if (_playingSeek + monoral_data.Length < _bufferUseSize[_playingIndex]){
 				copyBuffer(_buffer[_playingIndex], monoral_data, _playingSeek, 0, monoral_data.Length);
 				_playingSeek += monoral_data.Length;
 			}
 			else //change to next buffer
 			{
 				int copyBufferSize = _bufferUseSize[_playingIndex] - _playingSeek;
-				copyBuffer(_buffer[_playingIndex], monoral_data, _playingSeek, 0, copyBufferSize);   //残りのバッファ全コピ
-				_playingIndex = (_playingIndex + 1) % _bufferNum;   //次のバッファへ
+				copyBuffer(_buffer[_playingIndex], monoral_data, _playingSeek, 0, copyBufferSize);  
+				_playingIndex = (_playingIndex + 1) % _bufferNum; 
 				_playingSeek = 0;
 
 				int nextCopyBufferSize = monoral_data.Length - copyBufferSize;
@@ -144,11 +132,27 @@ public class audioFilter : MonoBehaviour {
 				_playingSeek += nextCopyBufferSize;
 			}
 		}
-		else
-		{
-
+		else{
 			memBuffer(monoral_data, 0, 0f, monoral_data.Length);
 		}
+	}
 
+	void copyBuffer(double[] src_buffer, double[] dst_buffer, int src_startIndex, int dst_startIndex, int size)
+	{
+		//if this case happened. mean buffer over run
+		if (src_buffer.Length < src_startIndex + size || dst_buffer.Length < dst_startIndex + size){
+			Debug.Log("error");
+		}
+
+		for (int i = 0; i < size; i++){
+			dst_buffer[dst_startIndex + i] = src_buffer[src_startIndex + i];
+		}
+	}
+
+	void memBuffer(double[] dst_buffer, int dst_startIndex, double value, int size)
+	{
+		for (int i = 0; i < size; i++){
+			dst_buffer[dst_startIndex + i] = value;
+		}
 	}
 }

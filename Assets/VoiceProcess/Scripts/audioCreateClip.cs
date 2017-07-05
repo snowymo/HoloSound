@@ -20,39 +20,18 @@ public class audioCreateClip : MonoBehaviour {
 
 	AudioClip aclip;
 
+	public audioSetup asetup;
+
+	public TrackableAudio taudio;
+
 //	void Start(){
 //		AudioClip myClip = AudioClip.Create ("test", samplerate/2, 2, samplerate, true, onAudioRead, onAudioSetPosition);
 //		aud = GetComponent<AudioSource> ();
 //		aud.clip = myClip;
 //		aclip = aud.clip;
 //		//aud.Play ();
-//
-//
-//	}
-	public audioSetup asetup;
-
-//	IEnumerator Awake () {
-//		if (asetup.step == 0) {
-//			aud = GetComponent<AudioSource> ();
-//			if (Microphone.devices.Length == 0)
-//				yield break;
-//			aud.clip = Microphone.Start (null, true, 5, AudioSettings.outputSampleRate);
-//			print ("microphone:" + AudioSettings.outputSampleRate);
-//			while (Microphone.GetPosition (null) <= 0) {
-//				yield return 0;
-//			}
-//			//audio.mute = true;
-//			aud.Play ();
-//
-//			print ("awake audio.frequency:" + aud.clip.frequency + "\taudio.length:" + aud.clip.length + "\taudio.samples" + aud.clip.samples + "\taudio.channel:" + aud.clip.channels);
-//
-//			test = new double[20];
-//			asetup.step++;
-//			print ("asetup.step:" + asetup.step);
-//		}
 //	}
 
-//
 //	void onAudioRead(float[] data){
 //		//print ("data.length:" + data.Length);
 //		int len = data.Length < monoral_data.Length ? data.Length : monoral_data.Length;
@@ -76,9 +55,9 @@ public class audioCreateClip : MonoBehaviour {
 
 	void Update(){
 		//print ("monoral_data.length:" + monoral_data.Length);
-		if (test.Length < monoral_data.Length) {
+		if (test.Length < taudio.audio_data.Length) {
 			for (int i = 0; i < test.Length; i++) {
-				test [i] = monoral_data [i];
+				test [i] = taudio.audio_data [i];
 			}
 		}
 
@@ -103,7 +82,7 @@ public class audioCreateClip : MonoBehaviour {
 		print ("channel:" + channels);
 		if (data.Length == 0)
 			return;
-		if (monoral_data.Length == 0)
+		if (taudio.audio_data.Length == 0)
 			return;
 		//fill monoral data to channels
 		for (int i = 0; i < data.Length; i+=channels)
@@ -112,7 +91,7 @@ public class audioCreateClip : MonoBehaviour {
 			for (int k = 0; k < channels; k++)
 			{
 				// final
-				data[i+k] = (float)monoral_data[j]*0.1f + 0.2f;
+				data[i+k] = (float)taudio.audio_data[j]*0.1f + 0.2f;
 			}
 		}
 	}
